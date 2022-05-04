@@ -119,6 +119,9 @@ class VersionsRestServlet(RestServlet):
                     is not None,
                     # Adds support for relation-based redactions as per MSC3912.
                     "org.matrix.msc3912": self.config.experimental.msc3912_enabled,
+                    # Tchap does not currently assume this rule for r0.5.0 and later, will
+                    # be removed once enough clients have updated.
+                    "m.lazy_load_members": True,
                 },
             },
         )
