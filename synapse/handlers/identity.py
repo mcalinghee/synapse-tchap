@@ -20,9 +20,11 @@ import urllib.parse
 from typing import TYPE_CHECKING, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from synapse.api.errors import (
+    AuthError,
     CodeMessageException,
     Codes,
     HttpResponseException,
+    ProxiedRequestError,
     SynapseError,
 )
 from synapse.api.ratelimiting import Ratelimiter
@@ -60,6 +62,7 @@ class IdentityHandler:
         )
         self.federation_http_client = hs.get_federation_http_client()
         self.hs = hs
+        self._enable_lookup = hs.config.registration.enable_3pid_lookup
 
         self._web_client_location = hs.config.email.invite_client_location
 
@@ -608,6 +611,84 @@ class IdentityHandler:
         except HttpResponseException as e:
             logger.warning("Error contacting msisdn account_threepid_delegate: %s", e)
             raise SynapseError(400, "Error contacting the identity server")
+
+    async def proxy_lookup_3pid(
+        self, id_server: str, medium: str, address: str
+    ) -> JsonDict:
+        """Looks up a 3pid in the passed identity server.
+
+        This is a temporary method that's only here to support old Tchap clients.
+        This will be removed at a later date, once enough clients have been updated.
+
+        Args:
+            id_server: The server name (including port, if required)
+                of the identity server to use.
+            medium: The type of the third party identifier (e.g. "email").
+            address: The third party identifier (e.g. "foo@example.com").
+
+        Returns:
+            The result of the lookup. See
+            https://matrix.org/docs/spec/identity_service/r0.1.0.html#association-lookup
+            for details
+        """
+        if not self._enable_lookup:
+            raise AuthError(
+                403, "Looking up third-party identifiers is denied from this server"
+            )
+
+        try:
+            data = await self.http_client.get_json(
+                "%s/_matrix/identity/api/v1/lookup" % (id_server,),
+                {"medium": medium, "address": address},
+            )
+
+        except HttpResponseException as e:
+            logger.info("Proxied lookup failed: %r", e)
+            raise e.to_synapse_error()
+        except IOError as e:
+            logger.info("Failed to contact %s: %s", id_server, e)
+            raise ProxiedRequestError(503, "Failed to contact identity server")
+
+        return data
+
+    async def proxy_bulk_lookup_3pid(
+        self, id_server: str, threepids: List[List[str]]
+    ) -> JsonDict:
+        """Looks up given 3pids in the passed identity server.
+
+        This is a temporary method that's only here to support old Tchap clients.
+        This will be removed at a later date, once enough clients have been updated.
+
+        Args:
+            id_server: The server name (including port, if required)
+                of the identity server to use.
+            threepids: The third party identifiers to lookup, as
+                a list of 2-string sized lists ([medium, address]).
+
+        Returns:
+            The result of the lookup. See
+            https://matrix.org/docs/spec/identity_service/r0.1.0.html#association-lookup
+            for details
+        """
+        if not self._enable_lookup:
+            raise AuthError(
+                403, "Looking up third-party identifiers is denied from this server"
+            )
+
+        try:
+            data = await self.http_client.post_json_get_json(
+                "%s/_matrix/identity/api/v1/bulk_lookup" % (id_server,),
+                {"threepids": threepids},
+            )
+
+        except HttpResponseException as e:
+            logger.info("Proxied lookup failed: %r", e)
+            raise e.to_synapse_error()
+        except IOError as e:
+            logger.info("Failed to contact %s: %s", id_server, e)
+            raise ProxiedRequestError(503, "Failed to contact identity server")
+
+        return data
 
     async def lookup_3pid(
         self,
