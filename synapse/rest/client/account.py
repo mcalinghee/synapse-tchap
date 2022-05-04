@@ -874,6 +874,152 @@ class AccountStatusRestServlet(RestServlet):
         return 200, {"account_statuses": statuses, "failures": failures}
 
 
+class SingleUserInfoServlet(RestServlet):
+    """
+    Deprecated and replaced by `/users/info`
+
+    GET /user/{user_id}/info HTTP/1.1
+
+    This is a temporary endpoint that's only here to support old Tchap clients. This will
+    be removed at a later date, once enough clients have been updated.
+    """
+
+    PATTERNS = client_patterns("/user/(?P<user_id>[^/]*)/info$")
+
+    def __init__(self, hs: "HomeServer") -> None:
+        super(SingleUserInfoServlet, self).__init__()
+        self.hs = hs
+        self.auth = hs.get_auth()
+        self.account_handler = hs.get_account_handler()
+
+    async def on_GET(
+        self, request: SynapseRequest, user_id: str
+    ) -> Tuple[int, JsonDict]:
+        await self.auth.get_user_by_req(request)
+
+        statuses, _ = await self.account_handler.get_account_statuses(
+            [user_id],
+            allow_remote=True,
+        )
+
+        return 200, statuses.get(user_id, {})
+
+
+class UserInfoServlet(RestServlet):
+    """Bulk version of `/user/{user_id}/info` endpoint
+
+    GET /users/info HTTP/1.1
+
+    Returns a dictionary of user_id to info dictionary. Supports remote users
+
+    This is a temporary endpoint that's only here to support old Tchap clients. This will
+    be removed at a later date, once enough clients have been updated.
+    """
+
+    PATTERNS = client_patterns("/users/info$", unstable=True, releases=())
+
+    def __init__(self, hs: "HomeServer"):
+        super().__init__()
+        self._auth = hs.get_auth()
+        self._account_handler = hs.get_account_handler()
+
+    async def on_POST(self, request: SynapseRequest) -> Tuple[int, JsonDict]:
+        await self._auth.get_user_by_req(request)
+
+        body = parse_json_object_from_request(request)
+        if "user_ids" not in body:
+            raise SynapseError(
+                400, "Required parameter 'user_ids' is missing", Codes.MISSING_PARAM
+            )
+
+        statuses, _ = await self._account_handler.get_account_statuses(
+            body["user_ids"],
+            allow_remote=True,
+        )
+
+        return 200, {
+            user_id: {
+                # The account validity status might not be there depending on the value of
+                # the 'use_account_validity_in_account_status' configuration flag.
+                "expired": status.get("org.matrix.expired", False),
+                "deactivated": status["deactivated"],
+            }
+            for user_id, status in statuses.items()
+            if status["exists"] is True
+        }
+
+
+class ThreepidLookupRestServlet(RestServlet):
+    """Proxy endpoint for v1 lookups
+
+    This is a temporary endpoint that's only here to support old Tchap clients. This will
+    be removed at a later date, once enough clients have been updated.
+    """
+
+    PATTERNS = client_patterns("/account/3pid/lookup$", unstable=True, releases=())
+
+    def __init__(self, hs: "HomeServer") -> None:
+        super(ThreepidLookupRestServlet, self).__init__()
+        self.auth = hs.get_auth()
+        self.identity_handler = hs.get_identity_handler()
+
+    async def on_GET(self, request: SynapseRequest) -> Tuple[int, JsonDict]:
+        """Proxy a /_matrix/identity/api/v1/lookup request to an identity
+        server
+        """
+        await self.auth.get_user_by_req(request)
+
+        # Verify query parameters
+        # Mypy will complain that request.args is of an incompatible type with JsonDict
+        # because Twisted is badly typed, so we just ignore it.
+        query_params: JsonDict = request.args  # type: ignore[assignment]
+        assert_params_in_dict(query_params, ["medium", "address", "id_server"])
+
+        # Retrieve needed information from query parameters
+        medium = parse_string(request, "medium", required=True)
+        address = parse_string(request, "address", required=True)
+        id_server = parse_string(request, "id_server", required=True)
+
+        # Proxy the request to the identity server. lookup_3pid handles checking
+        # if the lookup is allowed so we don't need to do it here.
+        ret = await self.identity_handler.proxy_lookup_3pid(id_server, medium, address)
+
+        return 200, ret
+
+
+class ThreepidBulkLookupRestServlet(RestServlet):
+    """Proxy endpoint for v1 bulk lookups
+
+    This is a temporary endpoint that's only here to support old Tchap clients. This will
+    be removed at a later date, once enough clients have been updated.
+    """
+
+    PATTERNS = client_patterns("/account/3pid/bulk_lookup$", unstable=True, releases=())
+
+    def __init__(self, hs: "HomeServer") -> None:
+        super(ThreepidBulkLookupRestServlet, self).__init__()
+        self.auth = hs.get_auth()
+        self.identity_handler = hs.get_identity_handler()
+
+    async def on_POST(self, request: SynapseRequest) -> Tuple[int, JsonDict]:
+        """Proxy a /_matrix/identity/api/v1/bulk_lookup request to an identity
+        server
+        """
+        await self.auth.get_user_by_req(request)
+
+        body = parse_json_object_from_request(request)
+
+        assert_params_in_dict(body, ["threepids", "id_server"])
+
+        # Proxy the request to the identity server. lookup_3pid handles checking
+        # if the lookup is allowed so we don't need to do it here.
+        ret = await self.identity_handler.proxy_bulk_lookup_3pid(
+            body["id_server"], body["threepids"]
+        )
+
+        return 200, ret
+
+
 def register_servlets(hs: "HomeServer", http_server: HttpServer) -> None:
     EmailPasswordRequestTokenRestServlet(hs).register(http_server)
     PasswordRestServlet(hs).register(http_server)
@@ -888,6 +1034,10 @@ def register_servlets(hs: "HomeServer", http_server: HttpServer) -> None:
     ThreepidUnbindRestServlet(hs).register(http_server)
     ThreepidDeleteRestServlet(hs).register(http_server)
     WhoamiRestServlet(hs).register(http_server)
+    SingleUserInfoServlet(hs).register(http_server)
+    UserInfoServlet(hs).register(http_server)
+    ThreepidLookupRestServlet(hs).register(http_server)
+    ThreepidBulkLookupRestServlet(hs).register(http_server)
 
     if hs.config.experimental.msc3720_enabled:
         AccountStatusRestServlet(hs).register(http_server)
