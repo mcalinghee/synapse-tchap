@@ -1083,6 +1083,8 @@ def register_servlets(hs: "HomeServer", http_server: HttpServer) -> None:
     WhoamiRestServlet(hs).register(http_server)
     SingleUserInfoServlet(hs).register(http_server)
     UserInfoServlet(hs).register(http_server)
+    ThreepidLookupRestServlet(hs).register(http_server)
+    ThreepidBulkLookupRestServlet(hs).register(http_server)
 
     if hs.config.experimental.msc3720_enabled:
         AccountStatusRestServlet(hs).register(http_server)
