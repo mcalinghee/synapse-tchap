@@ -53,6 +53,7 @@ from synapse.storage.util.sequence import SequenceGenerator
 from synapse.types import StateMap, get_domain_from_id
 from synapse.util import json_encoder
 from synapse.util.iterutils import batch_iter, sorted_topologically
+from synapse.util.stringutils import non_null_str_or_none
 
 if TYPE_CHECKING:
     from synapse.server import HomeServer
@@ -1648,8 +1649,12 @@ class PersistEventsStore:
         txn.call_after(prefill)
 
     def _store_redaction(self, txn: LoggingTransaction, event: EventBase) -> None:
-        # Invalidate the caches for the redacted event, note that these caches
-        # are also cleared as part of event replication in _invalidate_caches_for_event.
+        """Invalidate the caches for the redacted event.
+
+        Note that these caches are also cleared as part of event replication in
+        _invalidate_caches_for_event.
+        """
+        assert event.redacts is not None
         txn.call_after(self.store._invalidate_get_event_cache, event.redacts)
         txn.call_after(self.store.get_relations_for_event.invalidate, (event.redacts,))
         txn.call_after(self.store.get_applicable_edit.invalidate, (event.redacts,))
@@ -1732,9 +1737,6 @@ class PersistEventsStore:
                 for backfilled events because backfilled events in the past do
                 not affect the current local state.
         """
-
-        def non_null_str_or_none(val: Any) -> Optional[str]:
-            return val if isinstance(val, str) and "\u0000" not in val else None
 
         self.db_pool.simple_insert_many_txn(
             txn,
