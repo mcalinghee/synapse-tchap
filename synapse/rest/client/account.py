@@ -1020,7 +1020,9 @@ class ThreepidLookupRestServlet(RestServlet):
         # Mypy will complain that request.args is of an incompatible type with JsonDict
         # because Twisted is badly typed, so we just ignore it.
         query_params: JsonDict = request.args  # type: ignore[assignment]
-        assert_params_in_dict(query_params, ["medium", "address", "id_server"])
+        
+        # this check body params, but we send query parameters in url
+        #assert_params_in_dict(query_params, ["medium", "address", "id_server"]) 
 
         # Retrieve needed information from query parameters
         medium = parse_string(request, "medium", required=True)
