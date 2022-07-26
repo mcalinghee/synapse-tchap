@@ -638,7 +638,7 @@ class IdentityHandler:
 
         try:
             data = await self.http_client.get_json(
-                "https://%s/_matrix/identity/api/v1/lookup" % (id_server,),
+                "%s%s/_matrix/identity/api/v1/lookup" % (id_server_scheme, id_server),
                 {"medium": medium, "address": address},
             )
 
@@ -677,7 +677,7 @@ class IdentityHandler:
 
         try:
             data = await self.http_client.post_json_get_json(
-                "%s/_matrix/identity/api/v1/bulk_lookup" % (id_server,),
+                "%s%s/_matrix/identity/api/v1/bulk_lookup" % (id_server_scheme, id_server),
                 {"threepids": threepids},
             )
 
