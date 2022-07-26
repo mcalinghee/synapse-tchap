@@ -638,7 +638,7 @@ class IdentityHandler:
 
         try:
             data = await self.http_client.get_json(
-                "%s/_matrix/identity/api/v1/lookup" % (id_server,),
+                "https://%s/_matrix/identity/api/v1/lookup" % (id_server,),
                 {"medium": medium, "address": address},
             )
 
