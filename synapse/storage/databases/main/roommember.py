@@ -637,7 +637,9 @@ class RoomMemberWorkerStore(EventsWorkerStore):
         If a remote user only returns rooms this server is currently
         participating in.
         """
-        rooms = await self.get_rooms_for_user_with_stream_ordering(user_id)
+        rooms = await self.get_rooms_for_user_with_stream_ordering(
+            user_id, on_invalidate=on_invalidate
+        )
         return frozenset(r.room_id for r in rooms)
 
     @cached(
