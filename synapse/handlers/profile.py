@@ -66,8 +66,8 @@ class ProfileHandler:
         self.user_directory_handler = hs.get_user_directory_handler()
         self.request_ratelimiter = hs.get_request_ratelimiter()
 
-        self.max_avatar_size = hs.config.server.max_avatar_size
-        self.allowed_avatar_mimetypes = hs.config.server.allowed_avatar_mimetypes
+        self.max_avatar_size = None
+        self.allowed_avatar_mimetypes = None
 
         self.server_name = hs.config.server.server_name
 
