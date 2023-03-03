@@ -192,6 +192,14 @@ class BulkPushRuleEvaluator:
         should increment the unread count, and insert the results into the
         event_push_actions_staging table.
         """
+        if event.internal_metadata.is_historical():
+            # Push rules for events that aren't notifiable can't be processed by this and
+            # we want to skip push notification actions for historical messages
+            # because we don't want to notify people about old history back in time.
+            # The historical messages also do not have the proper `context.current_state_ids`
+            # and `state_groups` because they have `prev_events` that aren't persisted yet
+            # (historical messages persisted in reverse-chronological order).
+            return
         count_as_unread = _should_count_as_unread(event, context)
 
         rules_by_user = await self._get_rules_for_event(event, context)

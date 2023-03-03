@@ -464,6 +464,10 @@ class JoinRoomAliasServlet(ResolveRoomIdMixin, RestServlet):
         assert_params_in_dict(content, ["user_id"])
         target_user = UserID.from_string(content["user_id"])
 
+        historical = False
+        if "historical" in content:
+            historical = content["historical"]
+
         if not self.is_mine(target_user):
             raise SynapseError(
                 HTTPStatus.BAD_REQUEST,
@@ -503,6 +507,7 @@ class JoinRoomAliasServlet(ResolveRoomIdMixin, RestServlet):
                     action="invite",
                     remote_room_hosts=remote_room_hosts,
                     ratelimit=False,
+                    historical=historical,
                 )
 
         await self.room_member_handler.update_membership(
@@ -510,6 +515,7 @@ class JoinRoomAliasServlet(ResolveRoomIdMixin, RestServlet):
             target=fake_requester.user,
             room_id=room_id,
             action="join",
+            historical=historical,
             remote_room_hosts=remote_room_hosts,
             ratelimit=False,
         )

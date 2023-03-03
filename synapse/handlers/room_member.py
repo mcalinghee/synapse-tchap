@@ -947,6 +947,7 @@ class RoomMemberHandler(metaclass=abc.ABCMeta):
             content=content,
             require_consent=require_consent,
             outlier=outlier,
+            historical=historical,
         )
 
     async def _should_perform_remote_join(
