@@ -192,6 +192,10 @@ class BulkPushRuleEvaluator:
         should increment the unread count, and insert the results into the
         event_push_actions_staging table.
         """
+        # do not process push for excluded rooms
+        if event.room_id in self.hs.config.server.rooms_to_exclude_from_sync:
+            return
+        
         count_as_unread = _should_count_as_unread(event, context)
 
         rules_by_user = await self._get_rules_for_event(event, context)
