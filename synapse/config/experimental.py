@@ -84,3 +84,7 @@ class ExperimentalConfig(Config):
 
         # MSC3786 (Add a default push rule to ignore m.room.server_acl events)
         self.msc3786_enabled: bool = experimental.get("msc3786_enabled", False)
+
+        # MSC3967 is backported by Tchap : 
+        # MSC3967: Do not require UIA when first uploading cross signing keys
+        self.msc3967_enabled = experimental.get("msc3967_enabled", False)
