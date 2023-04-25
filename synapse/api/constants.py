@@ -99,6 +99,7 @@ class EventTypes:
     Redaction: Final = "m.room.redaction"
     ThirdPartyInvite: Final = "m.room.third_party_invite"
     RelatedGroups: Final = "m.room.related_groups"
+    AccessRules: Final = "im.vector.room.access_rules"
 
     RoomHistoryVisibility: Final = "m.room.history_visibility"
     CanonicalAlias: Final = "m.room.canonical_alias"
