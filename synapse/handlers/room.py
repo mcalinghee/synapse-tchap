@@ -441,6 +441,7 @@ class RoomCreationHandler:
             (EventTypes.ServerACL, ""),
             (EventTypes.RelatedGroups, ""),
             (EventTypes.PowerLevels, ""),
+            (EventTypes.AccessRules, ""),
         ]
 
         # If the old room was a space, copy over the room type and the rooms in
